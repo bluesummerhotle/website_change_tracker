@@ -1,34 +1,16 @@
-from flask import Flask, render_template
+from flask import request, redirect, render_template
 import os
 import json
 from checker import load_html, compare_html
 
-app = Flask(__name__)
-
 @app.route('/')
-from flask import request, redirect
-
-@app.route('/add-url', methods=['POST'])
-def add_url():
-    new_urls = request.form['urls'].strip().split('\n')
-
-    # Làm sạch URL
-    new_urls = [url.strip() for url in new_urls if url.strip()]
-
-    # Gộp vào urls.json hiện tại
-    with open('urls.json', 'r') as f:
-        existing = json.load(f)
-
-    all_urls = list(set(existing + new_urls))
-
-    with open('urls.json', 'w') as f:
-        json.dump(all_urls, f, indent=4)
-
-    return redirect('/')
-
 def index():
-    with open('urls.json', 'r') as f:
-        urls = json.load(f)
+    # Nếu chưa có file thì khởi tạo rỗng
+    if os.path.exists('urls.json'):
+        with open('urls.json', 'r') as f:
+            urls = json.load(f)
+    else:
+        urls = []
 
     reports = []
 
@@ -45,3 +27,21 @@ def index():
             continue
 
     return render_template('index.html', reports=reports)
+
+@app.route('/add-url', methods=['POST'])
+def add_url():
+    new_urls = request.form['urls'].strip().split('\n')
+    new_urls = [url.strip() for url in new_urls if url.strip()]
+
+    if os.path.exists('urls.json'):
+        with open('urls.json', 'r') as f:
+            existing = json.load(f)
+    else:
+        existing = []
+
+    all_urls = list(set(existing + new_urls))
+
+    with open('urls.json', 'w') as f:
+        json.dump(all_urls, f, indent=4)
+
+    return redirect('/')
