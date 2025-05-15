@@ -12,11 +12,14 @@ def index():
 
     reports = []
     for url in urls:
-        domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+    domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+    try:
         dates = sorted(os.listdir(f'storage/{domain}'))
         if len(dates) >= 2:
             old_html = load_html(domain, dates[-2].replace('.html', ''))
             new_html = load_html(domain, dates[-1].replace('.html', ''))
             diff = compare_html(old_html, new_html)
             reports.append({'url': url, 'diff': diff})
+    except FileNotFoundError:
+        continue
     return render_template('index.html', reports=reports)
