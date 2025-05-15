@@ -2,7 +2,8 @@ from flask import Flask, request, redirect, render_template, send_file
 import os
 import json
 from datetime import datetime
-from checker import fetch_html, compare_html_detailed, save_html, load_html
+from bs4 import BeautifulSoup
+import requests
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -16,6 +17,63 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 if not os.path.exists(URL_FILE):
     with open(URL_FILE, 'w') as f:
         json.dump([], f)
+
+def fetch_html(url):
+    response = requests.get(url, timeout=10)
+    return response.text
+
+def save_html(domain, timestamp, html):
+    domain_path = os.path.join(STORAGE_DIR, domain)
+    os.makedirs(domain_path, exist_ok=True)
+    file_path = os.path.join(domain_path, f"{timestamp}.html")
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+def load_html(domain, timestamp):
+    file_path = os.path.join(STORAGE_DIR, domain, f"{timestamp}.html")
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+def compare_html_detailed(old_html, new_html):
+    report = {}
+    old_soup = BeautifulSoup(old_html, 'html.parser')
+    new_soup = BeautifulSoup(new_html, 'html.parser')
+
+    def diff_text(label, old, new):
+        if old != new:
+            return [f"{label} thay đổi:", f"    Trước: {old}", f"    Sau: {new}"]
+        return []
+
+    # Title
+    report['title'] = diff_text("Tiêu đề", old_soup.title.string if old_soup.title else '', new_soup.title.string if new_soup.title else '')
+
+    # Meta Description
+    old_desc = old_soup.find('meta', attrs={'name': 'description'})
+    new_desc = new_soup.find('meta', attrs={'name': 'description'})
+    report['meta description'] = diff_text("Mô tả meta", old_desc['content'] if old_desc else '', new_desc['content'] if new_desc else '')
+
+    # Headings
+    old_headings = [h.get_text(strip=True) for h in old_soup.find_all(['h1', 'h2', 'h3'])]
+    new_headings = [h.get_text(strip=True) for h in new_soup.find_all(['h1', 'h2', 'h3'])]
+    diff_headings = list(set(new_headings) - set(old_headings)) + list(set(old_headings) - set(new_headings))
+    report['headings'] = diff_headings[:10]
+
+    # Text
+    old_text = old_soup.get_text(separator=' ', strip=True)
+    new_text = new_soup.get_text(separator=' ', strip=True)
+    old_words = set(old_text.split())
+    new_words = set(new_text.split())
+    diff_words = list(new_words - old_words)[:10]  # Show first 10 new words
+    report['text'] = diff_words
+
+    # Links
+    old_links = sorted(set(a['href'] for a in old_soup.find_all('a', href=True)))
+    new_links = sorted(set(a['href'] for a in new_soup.find_all('a', href=True)))
+    added_links = list(set(new_links) - set(old_links))[:5]
+    removed_links = list(set(old_links) - set(new_links))[:5]
+    report['links'] = [f"Thêm: {link}" for link in added_links] + [f"Gỡ: {link}" for link in removed_links]
+
+    return report
 
 @app.route('/')
 def index():
