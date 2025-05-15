@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 
-URL_FILE = 'urls.json'
+URL_FILE = '/tmp/urls.json'
 STORAGE_DIR = 'storage'
 
 # Ensure data dir
