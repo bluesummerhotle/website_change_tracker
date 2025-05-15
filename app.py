@@ -1,17 +1,21 @@
 from flask import Flask, request, redirect, render_template
-from flask import request, redirect, render_template
 import os
 import json
 from checker import load_html, compare_html
+
 app = Flask(__name__)
+
+URL_FILE = '/tmp/urls.json'  # ✅ Ghi file tạm để Render cho phép
+
+# Tạo file trống nếu chưa có
+if not os.path.exists(URL_FILE):
+    with open(URL_FILE, 'w') as f:
+        json.dump([], f)
+
 @app.route('/')
 def index():
-    # Nếu chưa có file thì khởi tạo rỗng
-    if os.path.exists('urls.json'):
-        with open('urls.json', 'r') as f:
-            urls = json.load(f)
-    else:
-        urls = []
+    with open(URL_FILE, 'r') as f:
+        urls = json.load(f)
 
     reports = []
 
@@ -34,15 +38,15 @@ def add_url():
     new_urls = request.form['urls'].strip().split('\n')
     new_urls = [url.strip() for url in new_urls if url.strip()]
 
-    if os.path.exists('urls.json'):
-        with open('urls.json', 'r') as f:
+    if os.path.exists(URL_FILE):
+        with open(URL_FILE, 'r') as f:
             existing = json.load(f)
     else:
         existing = []
 
     all_urls = list(set(existing + new_urls))
 
-    with open('urls.json', 'w') as f:
+    with open(URL_FILE, 'w') as f:
         json.dump(all_urls, f, indent=4)
 
     return redirect('/')
