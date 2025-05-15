@@ -41,32 +41,37 @@ def compare_html_detailed(old_html, new_html):
 
     def diff_text(label, old, new):
         if old != new:
+            print(f"🔍 {label} thay đổi:\n- TRƯỚC: {old}\n- SAU: {new}")
             return [f"{label} thay đổi:", f"    Trước: {old}", f"    Sau: {new}"]
         return []
 
     # Title
-    report['TITLE'] = diff_text("Tiêu đề", old_soup.title.string if old_soup.title else '', new_soup.title.string if new_soup.title else '')
+    old_title = old_soup.title.string.strip() if old_soup.title and old_soup.title.string else ''
+    new_title = new_soup.title.string.strip() if new_soup.title and new_soup.title.string else ''
+    report['TITLE'] = diff_text("Tiêu đề", old_title, new_title)
 
     # Meta Description
     old_desc = old_soup.find('meta', attrs={'name': 'description'})
     new_desc = new_soup.find('meta', attrs={'name': 'description'})
-    report['META DESCRIPTION'] = diff_text("Mô tả meta", old_desc['content'] if old_desc else '', new_desc['content'] if new_desc else '')
+    old_meta = old_desc['content'].strip() if old_desc and 'content' in old_desc.attrs else ''
+    new_meta = new_desc['content'].strip() if new_desc and 'content' in new_desc.attrs else ''
+    report['META DESCRIPTION'] = diff_text("Mô tả meta", old_meta, new_meta)
 
     # Headings
-    old_headings = set(h.get_text(strip=True) for h in old_soup.find_all(['h1', 'h2', 'h3']))
-    new_headings = set(h.get_text(strip=True) for h in new_soup.find_all(['h1', 'h2', 'h3']))
+    old_headings = set(h.get_text(strip=True)[:100] for h in old_soup.find_all(['h1', 'h2', 'h3']))
+    new_headings = set(h.get_text(strip=True)[:100] for h in new_soup.find_all(['h1', 'h2', 'h3']))
     added = new_headings - old_headings
     removed = old_headings - new_headings
     report['HEADINGS'] = [f"+ {h}" for h in added] + [f"- {h}" for h in removed]
 
-    # Text content
+    # Text content (keyword-level diff)
     old_text = old_soup.get_text(separator=' ', strip=True)
     new_text = new_soup.get_text(separator=' ', strip=True)
-    old_words = set(old_text.split())
-    new_words = set(new_text.split())
+    old_words = set(old_text.lower().split())
+    new_words = set(new_text.lower().split())
     added_words = new_words - old_words
     removed_words = old_words - new_words
-    report['TEXT'] = [f"+ {w}" for w in list(added_words)[:10]] + [f"- {w}" for w in list(removed_words)[:10]]
+    report['TEXT'] = [f"+ {w}" for w in list(added_words)[:15]] + [f"- {w}" for w in list(removed_words)[:15]]
 
     # Internal Links
     old_links = set(a['href'] for a in old_soup.find_all('a', href=True))
