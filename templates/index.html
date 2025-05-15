@@ -5,10 +5,22 @@
 </head>
 <body>
     <h1>Website Change Reports</h1>
-    {% for report in reports %}
-        <h2>{{ report.url }}</h2>
-        <pre>{{ report.diff }}</pre>
-        <hr>
-    {% endfor %}
+
+    <form action="/add-url" method="post">
+        <textarea name="urls" rows="5" cols="60" placeholder="Nhập mỗi URL trên một dòng..."></textarea><br>
+        <button type="submit">Thêm URL</button>
+    </form>
+
+    <hr>
+
+    {% if reports %}
+        {% for report in reports %}
+            <h2>{{ report.url }}</h2>
+            <pre>{{ report.diff }}</pre>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>Chưa có dữ liệu thay đổi để hiển thị.</p>
+    {% endif %}
 </body>
 </html>
