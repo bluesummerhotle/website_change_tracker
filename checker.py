@@ -19,7 +19,8 @@ if not os.path.exists(URL_FILE):
         json.dump([], f)
 
 def fetch_html(url):
-    response = requests.get(url, timeout=10)
+    headers = {"User-Agent": "Mozilla/5.0"}  # Bypass bot-blocking
+    response = requests.get(url, timeout=10, headers=headers)
     return response.text
 
 def save_html(domain, timestamp, html):
@@ -40,9 +41,8 @@ def compare_html_detailed(old_html, new_html):
     new_soup = BeautifulSoup(new_html, 'html.parser')
 
     def diff_text(label, old, new):
-        if old != new:
-            print(f"🔍 {label} thay đổi:\n- TRƯỚC: {old}\n- SAU: {new}")
-            return [f"{label} thay đổi:", f"    Trước: {old}", f"    Sau: {new}"]
+        if old.strip() != new.strip():
+            return [f"{label} thay đổi:", f"    Trước: {old.strip()[:150]}", f"    Sau: {new.strip()[:150]}"]
         return []
 
     # Title
@@ -58,22 +58,20 @@ def compare_html_detailed(old_html, new_html):
     report['META DESCRIPTION'] = diff_text("Mô tả meta", old_meta, new_meta)
 
     # Headings
-    old_headings = set(h.get_text(strip=True)[:100] for h in old_soup.find_all(['h1', 'h2', 'h3']))
-    new_headings = set(h.get_text(strip=True)[:100] for h in new_soup.find_all(['h1', 'h2', 'h3']))
+    old_headings = set(h.get_text(strip=True) for h in old_soup.find_all(['h1', 'h2', 'h3']))
+    new_headings = set(h.get_text(strip=True) for h in new_soup.find_all(['h1', 'h2', 'h3']))
     added = new_headings - old_headings
     removed = old_headings - new_headings
     report['HEADINGS'] = [f"+ {h}" for h in added] + [f"- {h}" for h in removed]
 
-    # Text content (keyword-level diff)
-    old_text = old_soup.get_text(separator=' ', strip=True)
-    new_text = new_soup.get_text(separator=' ', strip=True)
-    old_words = set(old_text.lower().split())
-    new_words = set(new_text.lower().split())
-    added_words = new_words - old_words
-    removed_words = old_words - new_words
-    report['TEXT'] = [f"+ {w}" for w in list(added_words)[:15]] + [f"- {w}" for w in list(removed_words)[:15]]
+    # Text diff using simple section comparison
+    old_paras = set(p.get_text(strip=True) for p in old_soup.find_all(['p', 'li']) if len(p.get_text(strip=True)) > 30)
+    new_paras = set(p.get_text(strip=True) for p in new_soup.find_all(['p', 'li']) if len(p.get_text(strip=True)) > 30)
+    added_texts = new_paras - old_paras
+    removed_texts = old_paras - new_paras
+    report['TEXT'] = [f"+ {t[:150]}" for t in list(added_texts)[:10]] + [f"- {t[:150]}" for t in list(removed_texts)[:10]]
 
-    # Internal Links
+    # Links
     old_links = set(a['href'] for a in old_soup.find_all('a', href=True))
     new_links = set(a['href'] for a in new_soup.find_all('a', href=True))
     report['LINKS'] = [f"+ {l}" for l in sorted(new_links - old_links)[:5]] + [f"- {l}" for l in sorted(old_links - new_links)[:5]]
