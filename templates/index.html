@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Website Change Tracker</title>
+</head>
+<body>
+    <h1>Website Change Reports</h1>
+    {% for report in reports %}
+        <h2>{{ report.url }}</h2>
+        <pre>{{ report.diff }}</pre>
+        <hr>
+    {% endfor %}
+</body>
+</html>
