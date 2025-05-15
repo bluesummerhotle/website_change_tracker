@@ -45,33 +45,33 @@ def compare_html_detailed(old_html, new_html):
         return []
 
     # Title
-    report['title'] = diff_text("Tiêu đề", old_soup.title.string if old_soup.title else '', new_soup.title.string if new_soup.title else '')
+    report['TITLE'] = diff_text("Tiêu đề", old_soup.title.string if old_soup.title else '', new_soup.title.string if new_soup.title else '')
 
     # Meta Description
     old_desc = old_soup.find('meta', attrs={'name': 'description'})
     new_desc = new_soup.find('meta', attrs={'name': 'description'})
-    report['meta description'] = diff_text("Mô tả meta", old_desc['content'] if old_desc else '', new_desc['content'] if new_desc else '')
+    report['META DESCRIPTION'] = diff_text("Mô tả meta", old_desc['content'] if old_desc else '', new_desc['content'] if new_desc else '')
 
     # Headings
-    old_headings = [h.get_text(strip=True) for h in old_soup.find_all(['h1', 'h2', 'h3'])]
-    new_headings = [h.get_text(strip=True) for h in new_soup.find_all(['h1', 'h2', 'h3'])]
-    diff_headings = list(set(new_headings) - set(old_headings)) + list(set(old_headings) - set(new_headings))
-    report['headings'] = diff_headings[:10]
+    old_headings = set(h.get_text(strip=True) for h in old_soup.find_all(['h1', 'h2', 'h3']))
+    new_headings = set(h.get_text(strip=True) for h in new_soup.find_all(['h1', 'h2', 'h3']))
+    added = new_headings - old_headings
+    removed = old_headings - new_headings
+    report['HEADINGS'] = [f"+ {h}" for h in added] + [f"- {h}" for h in removed]
 
-    # Text
+    # Text content
     old_text = old_soup.get_text(separator=' ', strip=True)
     new_text = new_soup.get_text(separator=' ', strip=True)
     old_words = set(old_text.split())
     new_words = set(new_text.split())
-    diff_words = list(new_words - old_words)[:10]  # Show first 10 new words
-    report['text'] = diff_words
+    added_words = new_words - old_words
+    removed_words = old_words - new_words
+    report['TEXT'] = [f"+ {w}" for w in list(added_words)[:10]] + [f"- {w}" for w in list(removed_words)[:10]]
 
-    # Links
-    old_links = sorted(set(a['href'] for a in old_soup.find_all('a', href=True)))
-    new_links = sorted(set(a['href'] for a in new_soup.find_all('a', href=True)))
-    added_links = list(set(new_links) - set(old_links))[:5]
-    removed_links = list(set(old_links) - set(new_links))[:5]
-    report['links'] = [f"Thêm: {link}" for link in added_links] + [f"Gỡ: {link}" for link in removed_links]
+    # Internal Links
+    old_links = set(a['href'] for a in old_soup.find_all('a', href=True))
+    new_links = set(a['href'] for a in new_soup.find_all('a', href=True))
+    report['LINKS'] = [f"+ {l}" for l in sorted(new_links - old_links)[:5]] + [f"- {l}" for l in sorted(old_links - new_links)[:5]]
 
     return report
 
@@ -143,9 +143,9 @@ def download_report(domain):
     text.textLine(f"📊 SEO Change Report: {domain}")
     text.textLine("")
     for section, changes in report.items():
-        text.textLine(f"{section.upper()}")
+        text.textLine(f"{section}")
         for line in changes:
-            text.textLine(f"- {line[:100]}")
+            text.textLine(f"- {line[:120]}")
         text.textLine("")
     c.drawText(text)
     c.showPage()
