@@ -2,7 +2,7 @@ from flask import request, redirect, render_template
 import os
 import json
 from checker import load_html, compare_html
-
+app = Flask(__name__)
 @app.route('/')
 def index():
     # Nếu chưa có file thì khởi tạo rỗng
