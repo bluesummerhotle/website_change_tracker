@@ -1,26 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Website Change Tracker</title>
+    <meta charset="UTF-8">
+    <title>🔍 SEO Change Tracker</title>
 </head>
 <body>
-    <h1>Website Change Reports</h1>
+    <h1>🧠 SEO Change Tracker</h1>
 
     <form action="/add-url" method="post">
-        <textarea name="urls" rows="5" cols="60" placeholder="Nhập mỗi URL trên một dòng..."></textarea><br>
-        <button type="submit">Thêm URL</button>
+        <label>🔗 Nhập domain cần theo dõi:</label><br>
+        <input type="text" name="url" style="width: 400px;" required>
+        <button type="submit">➕ Thêm domain</button>
     </form>
 
     <hr>
 
     {% if reports %}
-        {% for report in reports %}
-            <h2>{{ report.url }}</h2>
-            <pre>{{ report.diff }}</pre>
+        {% for item in reports %}
+            <h2>{{ item.url }}</h2>
+            <ul>
+                {% for section, lines in item.report.items() %}
+                    <li><strong>{{ section.upper() }}</strong>
+                        <ul>
+                            {% for line in lines %}
+                                <li>{{ line }}</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+            <form action="/download-report/{{ item.domain }}">
+                <button type="submit">📄 Tải báo cáo PDF</button>
+            </form>
             <hr>
         {% endfor %}
     {% else %}
-        <p>Chưa có dữ liệu thay đổi để hiển thị.</p>
+        <p>Chưa có báo cáo nào. Hãy thêm domain và chạy <code>/run-daily-task</code> để bắt đầu theo dõi.</p>
     {% endif %}
 </body>
 </html>
