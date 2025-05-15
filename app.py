@@ -11,7 +11,7 @@ def index():
         urls = json.load(f)
 
     reports = []
-    for url in urls:
+for url in urls:
     domain = url.replace('https://', '').replace('http://', '').split('/')[0]
     try:
         dates = sorted(os.listdir(f'storage/{domain}'))
