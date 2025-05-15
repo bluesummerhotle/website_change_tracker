@@ -50,15 +50,18 @@ def add_url():
     return redirect('/')
 
 @app.route('/run-daily-task')
-def run_task():
-    with open(URL_FILE, 'r') as f:
-        urls = json.load(f)
-    today = datetime.now().strftime('%Y-%m-%d')
-    for url in urls:
-        domain = url.replace('https://', '').replace('http://', '').split('/')[0]
-        html = fetch_html(url)
-        save_html(domain, today, html)
-    return '✅ Đã crawl xong nội dung hôm nay'
+def run_daily_task():
+    try:
+        with open(URL_FILE, 'r') as f:
+            urls = json.load(f)
+        today = datetime.now().strftime('%Y-%m-%d')
+        for url in urls:
+            domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+            html = fetch_html(url)
+            save_html(domain, today, html)
+        return "✅ Đã crawl HTML cho tất cả domain"
+    except Exception as e:
+        return f"❌ Lỗi: {str(e)}"
 
 @app.route('/download-report/<domain>')
 def download_report(domain):
@@ -80,7 +83,7 @@ def download_report(domain):
     for section, changes in report.items():
         text.textLine(f"{section.upper()}")
         for line in changes:
-            text.textLine(f"- {line[:100]}")  # truncate long lines
+            text.textLine(f"- {line[:100]}")
         text.textLine("")
     c.drawText(text)
     c.showPage()
