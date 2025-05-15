@@ -41,6 +41,9 @@ def index():
 def add_url():
     url = request.form['url'].strip()
     if url:
+        if not os.path.exists(URL_FILE):
+            with open(URL_FILE, 'w') as f:
+                json.dump([], f)
         with open(URL_FILE, 'r') as f:
             urls = json.load(f)
         if url not in urls:
