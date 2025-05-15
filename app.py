@@ -2,12 +2,13 @@ from flask import Flask, request, redirect, render_template
 import os
 import json
 from checker import load_html, compare_html
+from scheduler import run  # để gọi từ route /run-daily-task
 
 app = Flask(__name__)
 
-URL_FILE = '/tmp/urls.json'  # ✅ Ghi file tạm để Render cho phép
+URL_FILE = '/tmp/urls.json'
 
-# Tạo file trống nếu chưa có
+# 🔧 Tạo file /tmp/urls.json rỗng nếu chưa có
 if not os.path.exists(URL_FILE):
     with open(URL_FILE, 'w') as f:
         json.dump([], f)
@@ -50,3 +51,8 @@ def add_url():
         json.dump(all_urls, f, indent=4)
 
     return redirect('/')
+
+@app.route('/run-daily-task')
+def run_daily_task():
+    run()
+    return "✅ Đã chạy kiểm tra thay đổi!"
