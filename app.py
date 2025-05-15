@@ -6,6 +6,26 @@ from checker import load_html, compare_html
 app = Flask(__name__)
 
 @app.route('/')
+from flask import request, redirect
+
+@app.route('/add-url', methods=['POST'])
+def add_url():
+    new_urls = request.form['urls'].strip().split('\n')
+
+    # Làm sạch URL
+    new_urls = [url.strip() for url in new_urls if url.strip()]
+
+    # Gộp vào urls.json hiện tại
+    with open('urls.json', 'r') as f:
+        existing = json.load(f)
+
+    all_urls = list(set(existing + new_urls))
+
+    with open('urls.json', 'w') as f:
+        json.dump(all_urls, f, indent=4)
+
+    return redirect('/')
+
 def index():
     with open('urls.json', 'r') as f:
         urls = json.load(f)
