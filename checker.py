@@ -1,67 +1,98 @@
+from flask import Flask, request, redirect, render_template, send_file
 import os
-import requests
-from bs4 import BeautifulSoup
+import json
+from datetime import datetime
+from checker import fetch_html, compare_html_detailed, save_html, load_html
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
-def fetch_html(url):
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    res = requests.get(url, headers=headers, timeout=15)
-    res.encoding = res.apparent_encoding
-    return res.text
+app = Flask(__name__)
 
-def save_html(domain, date_str, content):
-    folder = os.path.join('storage', domain)
-    os.makedirs(folder, exist_ok=True)
-    with open(os.path.join(folder, f'{date_str}.html'), 'w', encoding='utf-8') as f:
-        f.write(content)
+URL_FILE = '/tmp/urls.json'
+STORAGE_DIR = 'storage'
 
-def load_html(domain, date_str):
-    path = os.path.join('storage', domain, f'{date_str}.html')
-    with open(path, 'r', encoding='utf-8') as f:
-        return f.read()
+# Ensure data dir
+os.makedirs(STORAGE_DIR, exist_ok=True)
+if not os.path.exists(URL_FILE):
+    with open(URL_FILE, 'w') as f:
+        json.dump([], f)
 
-def compare_html_detailed(old_html, new_html):
-    old_soup = BeautifulSoup(old_html, 'html.parser')
-    new_soup = BeautifulSoup(new_html, 'html.parser')
+@app.route('/')
+def index():
+    with open(URL_FILE, 'r') as f:
+        urls = json.load(f)
 
-    report = {}
+    reports = []
+    for url in urls:
+        domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+        domain_path = os.path.join(STORAGE_DIR, domain)
+        if not os.path.exists(domain_path):
+            continue
+        dates = sorted([f.replace('.html', '') for f in os.listdir(domain_path)])
+        if len(dates) >= 2:
+            old_html = load_html(domain, dates[-2])
+            new_html = load_html(domain, dates[-1])
+            report = compare_html_detailed(old_html, new_html)
+            reports.append({"url": url, "domain": domain, "report": report})
 
-    # 1. Compare Text
-    old_text = old_soup.get_text(separator=' ').strip()
-    new_text = new_soup.get_text(separator=' ').strip()
-    if old_text != new_text:
-        report['text_diff'] = ["Nội dung văn bản đã thay đổi"]
+    return render_template('index.html', reports=reports)
 
-    # 2. Compare Headings
-    heading_tags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
-    old_headings = [tag.get_text().strip() for tag in old_soup.find_all(heading_tags)]
-    new_headings = [tag.get_text().strip() for tag in new_soup.find_all(heading_tags)]
-    if old_headings != new_headings:
-        report['headings'] = [f"Từ: {old_headings}", f"Thành: {new_headings}"]
+@app.route('/add-url', methods=['POST'])
+def add_url():
+    url = request.form['url'].strip()
+    if url:
+        if not os.path.exists(URL_FILE):
+            with open(URL_FILE, 'w') as f:
+                json.dump([], f)
+        with open(URL_FILE, 'r') as f:
+            urls = json.load(f)
+        if url not in urls:
+            urls.append(url)
+            with open(URL_FILE, 'w') as f:
+                json.dump(urls, f, indent=4)
+    return redirect('/')
 
-    # 3. Compare Meta Title
-    old_title = old_soup.title.string.strip() if old_soup.title else ''
-    new_title = new_soup.title.string.strip() if new_soup.title else ''
-    if old_title != new_title:
-        report['title'] = [f"Từ: {old_title}", f"Thành: {new_title}"]
+@app.route('/run-daily-task')
+def run_daily_task():
+    try:
+        with open(URL_FILE, 'r') as f:
+            urls = json.load(f)
+        now = datetime.now()
+        timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
+        for url in urls:
+            domain = url.replace('https://', '').replace('http://', '').split('/')[0]
+            html = fetch_html(url)
+            save_html(domain, timestamp, html)
+        return "✅ Đã crawl HTML với timestamp theo từng lần trong ngày"
+    except Exception as e:
+        return f"❌ Lỗi: {str(e)}"
 
-    # 4. Compare Meta Description
-    old_desc = old_soup.find('meta', attrs={'name': 'description'})
-    new_desc = new_soup.find('meta', attrs={'name': 'description'})
-    old_desc = old_desc['content'].strip() if old_desc and 'content' in old_desc.attrs else ''
-    new_desc = new_desc['content'].strip() if new_desc and 'content' in new_desc.attrs else ''
-    if old_desc != new_desc:
-        report['meta_description'] = [f"Từ: {old_desc}", f"Thành: {new_desc}"]
+@app.route('/download-report/<domain>')
+def download_report(domain):
+    domain_path = os.path.join(STORAGE_DIR, domain)
+    dates = sorted([f.replace('.html', '') for f in os.listdir(domain_path)])
+    if len(dates) < 2:
+        return "Không đủ dữ liệu để so sánh."
 
-    # 5. Compare Links
-    old_links = sorted(set(a['href'] for a in old_soup.find_all('a', href=True)))
-    new_links = sorted(set(a['href'] for a in new_soup.find_all('a', href=True)))
-    added = [l for l in new_links if l not in old_links]
-    removed = [l for l in old_links if l not in new_links]
-    if added or removed:
-        report['links'] = []
-        if added:
-            report['links'].append(f"+ Thêm: {added}")
-        if removed:
-            report['links'].append(f"- Mất: {removed}")
+    old_html = load_html(domain, dates[-2])
+    new_html = load_html(domain, dates[-1])
+    report = compare_html_detailed(old_html, new_html)
 
-    return report
+    pdf_path = f"{domain}_seo_report.pdf"
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    c.setFont("Helvetica", 12)
+    text = c.beginText(50, 800)
+    text.textLine(f"📊 SEO Change Report: {domain}")
+    text.textLine("")
+    for section, changes in report.items():
+        text.textLine(f"{section.upper()}")
+        for line in changes:
+            text.textLine(f"- {line[:100]}")
+        text.textLine("")
+    c.drawText(text)
+    c.showPage()
+    c.save()
+    return send_file(pdf_path, as_attachment=True)
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
