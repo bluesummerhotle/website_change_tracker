@@ -54,12 +54,13 @@ def run_daily_task():
     try:
         with open(URL_FILE, 'r') as f:
             urls = json.load(f)
-        today = datetime.now().strftime('%Y-%m-%d')
+        now = datetime.now()
+        timestamp = now.strftime('%Y-%m-%d_%H-%M-%S')
         for url in urls:
             domain = url.replace('https://', '').replace('http://', '').split('/')[0]
             html = fetch_html(url)
-            save_html(domain, today, html)
-        return "✅ Đã crawl HTML cho tất cả domain"
+            save_html(domain, timestamp, html)
+        return "✅ Đã crawl HTML với timestamp theo từng lần trong ngày"
     except Exception as e:
         return f"❌ Lỗi: {str(e)}"
 
